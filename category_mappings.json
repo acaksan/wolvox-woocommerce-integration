@@ -1,0 +1,82 @@
+{
+    "7": {
+        "wolvox_path": [
+            {
+                "code": "7",
+                "name": "LASTİK"
+            }
+        ],
+        "woo_id": "35",
+        "woo_name": "Lastik"
+    },
+    "7_28": {
+        "wolvox_path": [
+            {
+                "code": "7",
+                "name": "LASTİK"
+            },
+            {
+                "code": "28",
+                "name": "LVR (HAFİF TİCARİ)"
+            }
+        ],
+        "woo_id": "299",
+        "woo_name": "Lvr (Hafif Ticari)"
+    },
+    "7_30": {
+        "wolvox_path": [
+            {
+                "code": "7",
+                "name": "LASTİK"
+            },
+            {
+                "code": "30",
+                "name": "SUV (4X4)"
+            }
+        ],
+        "woo_id": "216",
+        "woo_name": "SUV (4X4)"
+    },
+    "7_20": {
+        "wolvox_path": [
+            {
+                "code": "7",
+                "name": "LASTİK"
+            },
+            {
+                "code": "20",
+                "name": "BEZLİ KAMYONET"
+            }
+        ],
+        "woo_id": "379",
+        "woo_name": "BEZLİ KAMYONET"
+    },
+    "7_21": {
+        "wolvox_path": [
+            {
+                "code": "7",
+                "name": "LASTİK"
+            },
+            {
+                "code": "21",
+                "name": "FORKLİFT"
+            }
+        ],
+        "woo_id": "380",
+        "woo_name": "FORKLİFT"
+    },
+    "7_22": {
+        "wolvox_path": [
+            {
+                "code": "7",
+                "name": "LASTİK"
+            },
+            {
+                "code": "22",
+                "name": "İÇ LASTİK"
+            }
+        ],
+        "woo_id": "381",
+        "woo_name": "İÇ LASTİK"
+    }
+}

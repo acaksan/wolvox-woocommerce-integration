@@ -1,0 +1,29 @@
+{
+    "woo": {
+        "url": "https://lastik-al.com",
+        "key": "ck_14ca8aab6f546bb34e5fd7f27ab0f77c6728c066",
+        "secret": "cs_62e4007a181e06ed919fa469baaf6e3fac8ea45f",
+        "version": "wc/v3"
+    },
+    "wolvox": {
+        "host": "localhost",
+        "database": "E:/AKINSOFT/Wolvox8/Database_FB/100/2024/WOLVOX.FDB",
+        "username": "SYSDBA",
+        "password": "masterkey",
+        "charset": "UTF8"
+    },
+    "sync": {
+        "interval": 5,
+        "auto_sync": false,
+        "auto_match": true,
+        "sync_on_change": true,
+        "match_by_sku": true,
+        "match_by_name": true,
+        "match_by_barcode": false
+    },
+    "app": {
+        "theme": "light",
+        "language": "tr",
+        "font_size": 12
+    }
+}

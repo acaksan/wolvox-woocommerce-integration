@@ -1,0 +1,17 @@
+2025-01-19 04:26:56,661 - DBSync - ERROR - Veritabaný baðlantýsý baþarýsýz: Must supply one of:
+ 1. keyword argument dsn='host:/path/to/database'
+ 2. both keyword arguments host='host' and database='/path/to/database'
+ 3. only keyword argument database='/path/to/database'
+2025-01-19 04:27:11,230 - DBSync - ERROR - Veritabaný baðlantýsý baþarýsýz: ('Error while connecting to database:\n- SQLCODE: -902\n- I/O error during "CreateFile (open)" operation for file "C:/WOLVOX8/Db/WOLVOX8.FDB"\n- Error while trying to open file\n- Sistem belirtilen yolu bulamýyor. ', -902, 335544344)
+2025-01-19 04:27:36,954 - DBSync - INFO - Veritabaný baðlantýsý baþarýlý
+2025-01-19 04:27:36,960 - DBSync - ERROR - Ürünler getirilirken hata oluþtu: ('Error while preparing SQL statement:\n- SQLCODE: -206\n- Dynamic SQL Error\n- SQL error code = -206\n- Column unknown\n- S.STOKADI\n- At line 14, column 25', -206, 335544569)
+2025-01-19 04:27:36,961 - DBSync - INFO - Veritabaný baðlantýsý kapatýldý
+2025-01-19 04:28:09,455 - DBSync - INFO - Veritabaný baðlantýsý baþarýlý
+2025-01-19 04:28:09,460 - DBSync - ERROR - Ürünler getirilirken hata oluþtu: ('Error while preparing SQL statement:\n- SQLCODE: -206\n- Dynamic SQL Error\n- SQL error code = -206\n- Column unknown\n- STOKADI\n- At line 14, column 31', -206, 335544569)
+2025-01-19 04:28:09,461 - DBSync - INFO - Veritabaný baðlantýsý kapatýldý
+2025-01-19 04:36:37,917 - DBSync - INFO - Veritabaný baðlantýsý baþarýlý
+2025-01-19 04:36:37,948 - DBSync - ERROR - Ürünler getirilirken hata oluþtu: ('Error while preparing SQL statement:\n- SQLCODE: -206\n- Dynamic SQL Error\n- SQL error code = -206\n- Column unknown\n- S.SATISFIYATI1\n- At line 9, column 23', -206, 335544569)
+2025-01-19 04:36:37,949 - DBSync - INFO - Veritabaný baðlantýsý kapatýldý
+2025-01-19 04:37:06,623 - DBSync - INFO - Veritabaný baðlantýsý baþarýlý
+2025-01-19 04:37:06,669 - DBSync - ERROR - Ürünler getirilirken hata oluþtu: ('Error while preparing SQL statement:\n- SQLCODE: -204\n- Dynamic SQL Error\n- SQL error code = -204\n- Table unknown\n- STOK_HAREKETLERI\n- At line 18, column 47', -204, 335544569)
+2025-01-19 04:37:06,670 - DBSync - INFO - Veritabaný baðlantýsý kapatýldý

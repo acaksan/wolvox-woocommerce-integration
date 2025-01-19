@@ -1,0 +1,8 @@
+2025-01-19 16:39:41,402 - WolvoxProduct - INFO - Veritabaný baðlantýsý kuruldu
+2025-01-19 16:39:41,510 - WolvoxProduct - ERROR - Ürünler alýnýrken hata oluþtu: ('Error while preparing SQL statement:\n- SQLCODE: -204\n- Dynamic SQL Error\n- SQL error code = -204\n- Table unknown\n- STOKLAR\n- At line 20, column 30', -204, 335544569)
+2025-01-19 16:39:41,510 - ProductSync - ERROR - Ürün senkronizasyonu sýrasýnda hata: ('Error while preparing SQL statement:\n- SQLCODE: -204\n- Dynamic SQL Error\n- SQL error code = -204\n- Table unknown\n- STOKLAR\n- At line 20, column 30', -204, 335544569)
+2025-01-19 16:39:41,513 - WolvoxProduct - INFO - Veritabaný baðlantýsý kapatýldý
+2025-01-19 17:05:18,198 - WolvoxProduct - INFO - Veritabaný baðlantýsý kuruldu
+2025-01-19 17:05:18,252 - WolvoxProduct - ERROR - Ürünler alýnýrken hata oluþtu: ('Error while preparing SQL statement:\n- SQLCODE: -204\n- Dynamic SQL Error\n- SQL error code = -204\n- Table unknown\n- STOKLAR\n- At line 20, column 30', -204, 335544569)
+2025-01-19 17:05:18,253 - ProductSync - ERROR - Ürünler eþleþtirilirken hata: ('Error while preparing SQL statement:\n- SQLCODE: -204\n- Dynamic SQL Error\n- SQL error code = -204\n- Table unknown\n- STOKLAR\n- At line 20, column 30', -204, 335544569)
+2025-01-19 17:05:18,254 - WolvoxProduct - INFO - Veritabaný baðlantýsý kapatýldý
