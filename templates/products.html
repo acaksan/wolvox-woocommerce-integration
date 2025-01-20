@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Ürün Listesi{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Ürün Listesi</h2>
+    
+    <div class="mb-3">
+        <form class="form-inline" method="get">
+            <input type="text" name="q" class="form-control" placeholder="Ürün Ara..." value="{{ request.args.get('q', '') }}">
+            <button type="submit" class="btn btn-primary ml-2">Ara</button>
+        </form>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Stok Kodu</th>
+                <th>Ürün Adı</th>
+                <th>Barkod</th>
+                <th>Birim</th>
+                <th>KDV Oranı</th>
+                <th>Web'de Görünsün</th>
+                <th>Fiyat 1</th>
+                <th>Fiyat 2</th>
+                <th>Durum</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.stok_kodu }}</td>
+                <td>{{ product.stok_adi }}</td>
+                <td>{{ product.barkod }}</td>
+                <td>{{ product.birim }}</td>
+                <td>%{{ product.kdv_orani }}</td>
+                <td>{{ 'Evet' if product.webde_gorunsun == 1 else 'Hayır' }}</td>
+                <td>{{ "%.2f"|format(product.satis_fiyati1|float) }} TL</td>
+                <td>{{ "%.2f"|format(product.satis_fiyati2|float) }} TL</td>
+                <td>
+                    <span class="status {{ 'status-active' if product.aktif else 'status-inactive' }}">
+                        {{ 'Aktif' if product.aktif else 'Pasif' }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{{ url_for('product_detail', blkodu=product.blkodu) }}" class="btn btn-secondary btn-sm">Detay</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

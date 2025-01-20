@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Ürün Grupları{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Ürün Grupları</h2>
+    <div class="mb-3">
+        <button class="btn btn-primary">Yeni Grup Ekle</button>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Grup Kodu</th>
+                <th>Grup Adı</th>
+                <th>Alt Gruplar</th>
+                <th>Ürün Sayısı</th>
+                <th>WooCommerce Kategori</th>
+                <th>Durum</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for group in groups %}
+            <tr>
+                <td>{{ group.kod }}</td>
+                <td>{{ group.ad }}</td>
+                <td>{{ group.alt_grup_sayisi }}</td>
+                <td>{{ group.urun_sayisi }}</td>
+                <td>{{ group.wc_kategori }}</td>
+                <td>
+                    <span class="status {{ 'status-active' if group.aktif else 'status-inactive' }}">
+                        {{ 'Aktif' if group.aktif else 'Pasif' }}
+                    </span>
+                </td>
+                <td>
+                    <a href="#" class="btn btn-secondary btn-sm">Düzenle</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

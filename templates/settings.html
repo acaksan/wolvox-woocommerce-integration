@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Ayarlar{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Wolvox Bağlantı Ayarları</h2>
+    <form method="post" action="{{ url_for('test_connection') }}" class="mb-3">
+        <div class="form-group">
+            <label class="form-label">Veritabanı Yolu</label>
+            <input type="text" class="form-control" value="{{ config.WOLVOX_DB_PATH }}" readonly>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Kullanıcı Adı</label>
+            <input type="text" class="form-control" value="{{ config.WOLVOX_DB_USER }}" readonly>
+        </div>
+        <button type="submit" class="btn btn-primary">Bağlantıyı Test Et</button>
+    </form>
+</div>
+
+<div class="card mt-3">
+    <h2 class="card-title">WooCommerce Bağlantı Ayarları</h2>
+    <form method="post" action="{{ url_for('test_connection') }}" class="mb-3">
+        <div class="form-group">
+            <label class="form-label">API URL</label>
+            <input type="text" class="form-control" name="wc_url" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Consumer Key</label>
+            <input type="text" class="form-control" name="wc_key" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Consumer Secret</label>
+            <input type="password" class="form-control" name="wc_secret" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Bağlantıyı Test Et</button>
+    </form>
+</div>
+
+<div class="card mt-3">
+    <h2 class="card-title">Senkronizasyon Ayarları</h2>
+    <form method="post" action="{{ url_for('save_sync_settings') }}" class="mb-3">
+        <div class="form-group">
+            <label class="form-label">Otomatik Senkronizasyon</label>
+            <select class="form-control" name="auto_sync">
+                <option value="0">Kapalı</option>
+                <option value="1">Her saat</option>
+                <option value="2">Her gün</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Senkronize Edilecek Depolar</label>
+            <select class="form-control" name="sync_depots" multiple>
+                <option value="1">1_AC AKSAN</option>
+                <option value="2">2_LASTIK VS</option>
+                <option value="3">3_CADDE SUBE</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Ayarları Kaydet</button>
+    </form>
+</div>
+{% endblock %}

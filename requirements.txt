@@ -1,5 +1,8 @@
-﻿pytest==7.4.4
+Flask==3.0.0
+Flask-SocketIO==5.3.6
 python-dotenv==1.0.0
 requests==2.31.0
 fdb==2.0.2
-woocommerce==3.0.0
+WooCommerce==3.0.0
+schedule==1.2.1
+python-slugify==8.0.1

@@ -1,4 +1,4 @@
 @echo off
 cd /d "E:\wolvox-woocomerece entegrasyon"
-python main.py
+python woo_commerce\field_mapper.py
 pause

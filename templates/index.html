@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolvox - WooCommerce Entegrasyon</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .connection-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .connection-status.connected { background-color: #28a745; }
+        .connection-status.disconnected { background-color: #dc3545; }
+        
+        .product-row { cursor: pointer; }
+        .product-row:hover { background-color: #f8f9fa; }
+        
+        #logWindow {
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            background-color: #f8f9fa;
+            padding: 10px;
+        }
+        
+        .log-info { color: #0d6efd; }
+        .log-error { color: #dc3545; }
+        .log-warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sol Menü -->
+            <div class="col-md-2 bg-light p-3 min-vh-100">
+                <h5 class="mb-3">Bağlantı Durumu</h5>
+                <div class="mb-3">
+                    <span class="connection-status" id="dbStatus"></span>
+                    Veritabanı
+                </div>
+                
+                <h5 class="mb-3 mt-4">Filtreler</h5>
+                <div class="mb-3">
+                    <label class="form-label">Kategori</label>
+                    <select class="form-select" id="categoryFilter">
+                        <option value="">Tümü</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Sayfa Başı</label>
+                    <select class="form-select" id="perPage">
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="250">250</option>
+                    </select>
+                </div>
+                
+                <div class="mt-4">
+                    <button class="btn btn-primary w-100 mb-2" id="syncButton">
+                        <i class="bi bi-arrow-repeat"></i> Senkronize Et
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Ana İçerik -->
+            <div class="col-md-10 p-3">
+                <div class="row mb-3">
+                    <div class="col">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Ürün Ara...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Stok Kodu</th>
+                                <th>Ürün Adı</th>
+                                <th>Kategori</th>
+                                <th>Marka</th>
+                                <th class="text-end">KDV</th>
+                                <th class="text-end">Stok</th>
+                                <th class="text-end">Fiyat 1</th>
+                                <th class="text-end">Fiyat 2</th>
+                                <th class="text-center">Web</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productList"></tbody>
+                    </table>
+                </div>
+                
+                <div class="row">
+                    <div class="col">
+                        <nav>
+                            <ul class="pagination" id="pagination"></ul>
+                        </nav>
+                    </div>
+                    <div class="col text-end">
+                        <span id="totalCount"></span>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h5>Log Kayıtları</h5>
+                    <div id="logWindow"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ürün Detay Modal -->
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ürün Detayı</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Stok Kodu:</th>
+                                    <td id="modalStokKodu"></td>
+                                </tr>
+                                <tr>
+                                    <th>Ürün Adı:</th>
+                                    <td id="modalStokAdi"></td>
+                                </tr>
+                                <tr>
+                                    <th>Barkod:</th>
+                                    <td id="modalBarkod"></td>
+                                </tr>
+                                <tr>
+                                    <th>Kategori:</th>
+                                    <td id="modalKategori"></td>
+                                </tr>
+                                <tr>
+                                    <th>Alt Kategori:</th>
+                                    <td><span id="modalAraGrup"></span> / <span id="modalAltGrup"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>Marka:</th>
+                                    <td id="modalMarka"></td>
+                                </tr>
+                                <tr>
+                                    <th>Model:</th>
+                                    <td id="modalModel"></td>
+                                </tr>
+                                <tr>
+                                    <th>Ebat:</th>
+                                    <td><span id="modalEbat1"></span>/<span id="modalEbat2"></span>R<span id="modalEbat3"></span></td>
+                                </tr>
+                                <tr>
+                                    <th>Hız Kodu:</th>
+                                    <td id="modalHizKodu"></td>
+                                </tr>
+                                <tr>
+                                    <th>Yük Endeksi:</th>
+                                    <td id="modalYukEndeksi"></td>
+                                </tr>
+                                <tr>
+                                    <th>Performans:</th>
+                                    <td>
+                                        Islak Zemin: <span id="modalIslakZemin"></span> |
+                                        Yakıt: <span id="modalYakit"></span> |
+                                        Gürültü: <span id="modalGurultu"></span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Stok:</th>
+                                    <td id="modalStok"></td>
+                                </tr>
+                                <tr>
+                                    <th>Depo Stokları:</th>
+                                    <td id="modalDepoStoklari"></td>
+                                </tr>
+                                <tr>
+                                    <th>Satış Fiyatı:</th>
+                                    <td id="modalFiyat"></td>
+                                </tr>
+                                <tr>
+                                    <th>Açıklama:</th>
+                                    <td id="modalAciklama"></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Fiyat Listesi</h6>
+                            <table class="table table-sm" id="modalFiyatlar">
+                                <thead>
+                                    <tr>
+                                        <th>Liste</th>
+                                        <th class="text-end">Fiyat</th>
+                                        <th>Döviz</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            
+                            <h6 class="mt-3">Özellikler</h6>
+                            <table class="table table-sm" id="modalOzellikler">
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col">
+                            <h6>Son Hareketler</h6>
+                            <table class="table table-sm" id="modalHareketler">
+                                <thead>
+                                    <tr>
+                                        <th>Tarih</th>
+                                        <th>İşlem</th>
+                                        <th class="text-end">Miktar</th>
+                                        <th>Belge No</th>
+                                        <th>Açıklama</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col">
+                            <h6>Resimler</h6>
+                            <div id="modalResimler"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script>
+        // Genel değişkenler
+        let currentPage = 1;
+        let totalPages = 1;
+        let productModal = null;
+        
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            // Modal'ı başlat
+            productModal = new bootstrap.Modal(document.getElementById('productModal'));
+            
+            // Socket.io bağlantısı
+            const socket = io();
+            socket.on('log_message', function(data) {
+                const logWindow = document.getElementById('logWindow');
+                const div = document.createElement('div');
+                div.className = `log-${data.level.toLowerCase()}`;
+                div.textContent = data.message;
+                logWindow.appendChild(div);
+                logWindow.scrollTop = logWindow.scrollHeight;
+            });
+            
+            // Bağlantı durumunu kontrol et
+            checkConnection();
+            
+            // İlk ürün listesini yükle
+            loadProducts();
+            
+            // Event listener'ları ekle
+            document.getElementById('searchButton').addEventListener('click', function() {
+                currentPage = 1;
+                loadProducts();
+            });
+            
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    currentPage = 1;
+                    loadProducts();
+                }
+            });
+            
+            document.getElementById('categoryFilter').addEventListener('change', function() {
+                currentPage = 1;
+                loadProducts();
+            });
+            
+            document.getElementById('perPage').addEventListener('change', function() {
+                currentPage = 1;
+                loadProducts();
+            });
+        });
+        
+        // Bağlantı durumunu kontrol et
+        function checkConnection() {
+            fetch('/api/test-connection')
+                .then(response => response.json())
+                .then(data => {
+                    const dbStatus = document.getElementById('dbStatus');
+                    if (data.database.status === 'success') {
+                        dbStatus.className = 'connection-status connected';
+                    } else {
+                        dbStatus.className = 'connection-status disconnected';
+                    }
+                });
+        }
+        
+        // Ürünleri yükle
+        function loadProducts() {
+            const search = document.getElementById('searchInput').value;
+            const category = document.getElementById('categoryFilter').value;
+            const perPage = document.getElementById('perPage').value;
+            
+            const url = `/api/products?page=${currentPage}&per_page=${perPage}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Kategori listesini güncelle
+                    const categoryFilter = document.getElementById('categoryFilter');
+                    if (categoryFilter.options.length <= 1) {
+                        data.categories.forEach(category => {
+                            const option = document.createElement('option');
+                            option.value = category;
+                            option.textContent = category;
+                            categoryFilter.appendChild(option);
+                        });
+                    }
+                    
+                    // Ürün listesini güncelle
+                    const tbody = document.getElementById('productList');
+                    tbody.innerHTML = '';
+                    
+                    data.products.forEach(product => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'product-row';
+                        tr.innerHTML = `
+                            <td>${product.STOKKODU}</td>
+                            <td>${product.STOK_ADI}</td>
+                            <td>${product.GRUBU || ''}</td>
+                            <td>${product.MARKASI || ''}</td>
+                            <td class="text-end">%${product.KDV_ORANI?.toFixed(0) || '0'}</td>
+                            <td class="text-end">${product.STOK_MIKTARI.toFixed(2)}</td>
+                            <td class="text-end">${product.SATIS_FIYATI1.toFixed(2)} ₺</td>
+                            <td class="text-end">${product.SATIS_FIYATI2.toFixed(2)} ₺</td>
+                            <td class="text-center">
+                                <i class="bi ${product.WEBDE_GORUNSUN ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'}"></i>
+                            </td>
+                        `;
+                        
+                        tr.addEventListener('click', () => showProductDetail(product.STOKKODU));
+                        tbody.appendChild(tr);
+                    });
+                    
+                    // Sayfalama
+                    totalPages = Math.ceil(data.total / data.per_page);
+                    updatePagination();
+                    
+                    // Toplam kayıt sayısı
+                    document.getElementById('totalCount').textContent = `Toplam: ${data.total} ürün`;
+                });
+        }
+        
+        // Sayfalama
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+            
+            // Önceki sayfa
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = '<a class="page-link" href="#">Önceki</a>';
+            prevLi.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    loadProducts();
+                }
+            });
+            pagination.appendChild(prevLi);
+            
+            // Sayfa numaraları
+            for (let i = 1; i <= totalPages; i++) {
+                if (
+                    i === 1 || // İlk sayfa
+                    i === totalPages || // Son sayfa
+                    (i >= currentPage - 2 && i <= currentPage + 2) // Aktif sayfanın etrafı
+                ) {
+                    const li = document.createElement('li');
+                    li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                    li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                    li.addEventListener('click', () => {
+                        currentPage = i;
+                        loadProducts();
+                    });
+                    pagination.appendChild(li);
+                } else if (
+                    i === currentPage - 3 ||
+                    i === currentPage + 3
+                ) {
+                    // Üç nokta
+                    const li = document.createElement('li');
+                    li.className = 'page-item disabled';
+                    li.innerHTML = '<a class="page-link" href="#">...</a>';
+                    pagination.appendChild(li);
+                }
+            }
+            
+            // Sonraki sayfa
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = '<a class="page-link" href="#">Sonraki</a>';
+            nextLi.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    loadProducts();
+                }
+            });
+            pagination.appendChild(nextLi);
+        }
+        
+        // Ürün detayını göster
+        function showProductDetail(stokkodu) {
+            fetch(`/api/products/${stokkodu}`)
+                .then(response => response.json())
+                .then(product => {
+                    // Ana bilgiler
+                    document.getElementById('modalStokKodu').textContent = product.STOKKODU;
+                    document.getElementById('modalStokAdi').textContent = product.STOK_ADI;
+                    document.getElementById('modalBarkod').textContent = product.BARKODU;
+                    document.getElementById('modalKategori').textContent = product.GRUBU;
+                    document.getElementById('modalAraGrup').textContent = product.ARA_GRUBU;
+                    document.getElementById('modalAltGrup').textContent = product.ALT_GRUBU;
+                    document.getElementById('modalMarka').textContent = product.MARKASI;
+                    document.getElementById('modalModel').textContent = product.MODELI;
+                    document.getElementById('modalEbat1').textContent = product.EBAT_1;
+                    document.getElementById('modalEbat2').textContent = product.EBAT_2;
+                    document.getElementById('modalEbat3').textContent = product.OZELALANTANIM_3;
+                    document.getElementById('modalHizKodu').textContent = product.HIZ_KODU;
+                    document.getElementById('modalYukEndeksi').textContent = product.YUK_ENDEKSI;
+                    document.getElementById('modalIslakZemin').textContent = product.ISLAK_ZEMIN;
+                    document.getElementById('modalYakit').textContent = product.YAKIT_TUKETIMI;
+                    document.getElementById('modalGurultu').textContent = product.GURULTU;
+                    document.getElementById('modalStok').textContent = product.STOK_MIKTARI.toFixed(2);
+                    document.getElementById('modalDepoStoklari').innerHTML = product.DEPO_STOKLARI.split(',').join('<br>');
+                    document.getElementById('modalFiyat').textContent = product.SATIS_FIYATI1.toFixed(2) + ' ₺';
+                    document.getElementById('modalAciklama').textContent = product.ACIKLAMA1 || '';
+                    
+                    // Fiyat listesi
+                    const fiyatlarTbody = document.querySelector('#modalFiyatlar tbody');
+                    fiyatlarTbody.innerHTML = '';
+                    product.fiyatlar.forEach(fiyat => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${fiyat.TANIMI || `Liste ${fiyat.FIYAT_NO}`}</td>
+                            <td class="text-end">${fiyat.FIYATI.toFixed(2)}</td>
+                            <td>${fiyat.DOVIZ_TURU || 'TL'}</td>
+                        `;
+                        fiyatlarTbody.appendChild(tr);
+                    });
+                    
+                    // Özellikler
+                    const ozelliklerTbody = document.querySelector('#modalOzellikler tbody');
+                    ozelliklerTbody.innerHTML = '';
+                    product.ozellikler.forEach(ozellik => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${ozellik.name}</td>
+                            <td>${ozellik.value}</td>
+                        `;
+                        ozelliklerTbody.appendChild(tr);
+                    });
+                    
+                    // Stok hareketleri
+                    const hareketlerTbody = document.querySelector('#modalHareketler tbody');
+                    hareketlerTbody.innerHTML = '';
+                    product.hareketler.forEach(hareket => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(hareket.tarih).toLocaleString()}</td>
+                            <td>${hareket.tur === 0 ? 'Giriş' : 'Çıkış'}</td>
+                            <td class="text-end">${hareket.miktar.toFixed(2)}</td>
+                            <td>${hareket.belge_no || ''}</td>
+                            <td>${hareket.aciklama || ''}</td>
+                        `;
+                        hareketlerTbody.appendChild(tr);
+                    });
+                    
+                    // Resimler
+                    const resimlerDiv = document.getElementById('modalResimler');
+                    resimlerDiv.innerHTML = '';
+                    if (product.resimler && product.resimler.length > 0) {
+                        product.resimler.forEach(resim => {
+                            const img = document.createElement('img');
+                            img.src = resim;
+                            img.className = 'img-thumbnail m-1';
+                            img.style.maxHeight = '100px';
+                            resimlerDiv.appendChild(img);
+                        });
+                    } else {
+                        resimlerDiv.innerHTML = '<p class="text-muted">Resim bulunamadı</p>';
+                    }
+                    
+                    productModal.show();
+                });
+        }
+    </script>
+</body>
+</html>

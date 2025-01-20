@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Senkronizasyon Durumu{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2 class="card-title">Senkronizasyon Durumu</h2>
+    <div class="mb-3">
+        <button class="btn btn-primary">Senkronizasyonu Başlat</button>
+    </div>
+    
+    <div class="mb-3">
+        <h3>Son Senkronizasyon</h3>
+        <p>Tarih: {{ last_sync.date if last_sync else 'Henüz senkronizasyon yapılmadı' }}</p>
+        <p>Durum: 
+            {% if last_sync %}
+            <span class="status {{ 'status-active' if last_sync.success else 'status-inactive' }}">
+                {{ 'Başarılı' if last_sync.success else 'Başarısız' }}
+            </span>
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="mb-3">
+        <h3>Senkronizasyon İstatistikleri</h3>
+        <table class="table">
+            <tr>
+                <th>Toplam Ürün</th>
+                <td>{{ stats.total_products if stats else 0 }}</td>
+            </tr>
+            <tr>
+                <th>Senkronize Edilen</th>
+                <td>{{ stats.synced_products if stats else 0 }}</td>
+            </tr>
+            <tr>
+                <th>Başarısız</th>
+                <td>{{ stats.failed_products if stats else 0 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="mb-3">
+        <h3>Son İşlemler</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>İşlem</th>
+                    <th>Ürün</th>
+                    <th>Durum</th>
+                    <th>Detay</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.date }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.product }}</td>
+                    <td>
+                        <span class="status {{ 'status-active' if log.success else 'status-inactive' }}">
+                            {{ 'Başarılı' if log.success else 'Başarısız' }}
+                        </span>
+                    </td>
+                    <td>{{ log.detail }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
