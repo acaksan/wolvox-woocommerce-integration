@@ -17,12 +17,59 @@ class Config:
         # Buraya başka mağazalar eklenebilir
     }
     
-    # Wolvox ayarları
-    WOLVOX_DB_PATH = os.getenv('WOLVOX_DB_PATH')
-    WOLVOX_DB_USER = os.getenv('WOLVOX_DB_USER')
-    WOLVOX_DB_PASSWORD = os.getenv('WOLVOX_DB_PASSWORD')
-    FIREBIRD_CLIENT_PATH = os.getenv('FIREBIRD_CLIENT_PATH')
+    # Firebird veritabanı ayarları
+    DB_CONFIG = {
+        'host': 'localhost',
+        'database': 'E:/AKINSOFT/WOLVOX8/DATABASE_FB/100/2024/WOLVOX.FDB',  # Forward slash kullanıyoruz
+        'user': 'SYSDBA',
+        'password': 'masterkey',
+        'charset': 'WIN1254'  # Turkish Windows charset
+    }
     
+    # WooCommerce API ayarları
+    WOOCOMMERCE_CONFIG = {
+        'url': 'https://example.com',
+        'consumer_key': 'your_consumer_key',
+        'consumer_secret': 'your_consumer_secret',
+        'verify_ssl': True,
+        'version': 'wc/v3'
+    }
+    
+    # Uygulama ayarları
+    APP_CONFIG = {
+        'debug': True,
+        'host': 'localhost',
+        'port': 8080,
+        'secret_key': 'your-secret-key-here'
+    }
+    
+    # Loglama ayarları
+    LOG_CONFIG = {
+        'filename': 'app.log',
+        'level': 'DEBUG',
+        'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    }
+    
+    # Senkronizasyon ayarları
+    SYNC_CONFIG = {
+        'interval': 300,  # 5 dakika
+        'batch_size': 100,
+        'retry_count': 3,
+        'retry_delay': 5
+    }
+    
+    # Yol ayarları
+    PATH_CONFIG = {
+        'upload_folder': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads'),
+        'temp_folder': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp'),
+        'log_folder': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    }
+    
+    # Klasörleri oluştur
+    for folder in PATH_CONFIG.values():
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            
     # Senkronizasyon ayarları
     SYNC_SETTINGS = {
         'PRODUCT_SYNC_INTERVAL': 30,  # dakika

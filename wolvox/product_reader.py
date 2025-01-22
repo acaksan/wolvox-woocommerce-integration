@@ -3,6 +3,7 @@ import fdb
 from dotenv import load_dotenv
 import logging
 from datetime import datetime
+from typing import Dict, List, Optional
 
 # Logging ayarları
 logging.basicConfig(
@@ -15,6 +16,167 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger('WolvoxProduct')
+
+class ProductReader:
+    def __init__(self, connection):
+        """Wolvox ürün okuyucu
+
+        Args:
+            connection: Veritabanı bağlantısı
+        """
+        self.conn = connection
+
+    def get_all_products(self) -> Optional[List[Dict]]:
+        """Tüm ürünleri getir
+
+        Returns:
+            Ürün listesi veya None
+        """
+        try:
+            cursor = self.conn.cursor()
+            
+            # Ana ürün bilgilerini al
+            cursor.execute("""
+                SELECT 
+                    s.STOK_KODU,
+                    s.STOK_ADI,
+                    s.BARKOD,
+                    s.GRUP_KODU,
+                    s.MARKA_KODU,
+                    s.MODEL_KODU,
+                    s.ACIKLAMA,
+                    s.SATIS_FIYATI1,
+                    s.BAKIYE,
+                    s.WEB_DURUM,
+                    s.AKTIF,
+                    g.GRUP_ADI,
+                    m.MARKA_ADI,
+                    md.MODEL_ADI
+                FROM STOKLAR s
+                LEFT JOIN STOK_GRUPLARI g ON s.GRUP_KODU = g.GRUP_KODU
+                LEFT JOIN STOK_MARKALARI m ON s.MARKA_KODU = m.MARKA_KODU
+                LEFT JOIN STOK_MODELLERI md ON s.MODEL_KODU = md.MODEL_KODU
+                WHERE s.WEB_DURUM = 1 AND s.AKTIF = 1
+            """)
+            
+            products = []
+            for row in cursor.fetchall():
+                product = {
+                    'STOK_KODU': row[0],
+                    'STOK_ADI': row[1],
+                    'BARKOD': row[2],
+                    'GRUP_KODU': row[3],
+                    'MARKA_KODU': row[4],
+                    'MODEL_KODU': row[5],
+                    'ACIKLAMA': row[6],
+                    'SATIS_FIYATI1': float(row[7]) if row[7] else 0.0,
+                    'BAKIYE': float(row[8]) if row[8] else 0.0,
+                    'WEB_DURUM': row[9],
+                    'AKTIF': row[10],
+                    'KATEGORI': row[11],  # GRUP_ADI
+                    'MARKA': row[12],     # MARKA_ADI
+                    'MODEL': row[13]      # MODEL_ADI
+                }
+                products.append(product)
+                
+            return products
+            
+        except Exception as e:
+            logger.error(f"Ürün okuma hatası: {str(e)}")
+            return None
+
+    def get_product_by_code(self, stok_kodu: str) -> Optional[Dict]:
+        """Stok koduna göre ürün getir
+
+        Args:
+            stok_kodu: Ürün stok kodu
+
+        Returns:
+            Ürün bilgileri veya None
+        """
+        try:
+            cursor = self.conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    s.STOK_KODU,
+                    s.STOK_ADI,
+                    s.BARKOD,
+                    s.GRUP_KODU,
+                    s.MARKA_KODU,
+                    s.MODEL_KODU,
+                    s.ACIKLAMA,
+                    s.SATIS_FIYATI1,
+                    s.BAKIYE,
+                    s.WEB_DURUM,
+                    s.AKTIF,
+                    g.GRUP_ADI,
+                    m.MARKA_ADI,
+                    md.MODEL_ADI
+                FROM STOKLAR s
+                LEFT JOIN STOK_GRUPLARI g ON s.GRUP_KODU = g.GRUP_KODU
+                LEFT JOIN STOK_MARKALARI m ON s.MARKA_KODU = m.MARKA_KODU
+                LEFT JOIN STOK_MODELLERI md ON s.MODEL_KODU = md.MODEL_KODU
+                WHERE s.STOK_KODU = ? AND s.WEB_DURUM = 1 AND s.AKTIF = 1
+            """, (stok_kodu,))
+            
+            row = cursor.fetchone()
+            if not row:
+                return None
+                
+            return {
+                'STOK_KODU': row[0],
+                'STOK_ADI': row[1],
+                'BARKOD': row[2],
+                'GRUP_KODU': row[3],
+                'MARKA_KODU': row[4],
+                'MODEL_KODU': row[5],
+                'ACIKLAMA': row[6],
+                'SATIS_FIYATI1': float(row[7]) if row[7] else 0.0,
+                'BAKIYE': float(row[8]) if row[8] else 0.0,
+                'WEB_DURUM': row[9],
+                'AKTIF': row[10],
+                'KATEGORI': row[11],  # GRUP_ADI
+                'MARKA': row[12],     # MARKA_ADI
+                'MODEL': row[13]      # MODEL_ADI
+            }
+            
+        except Exception as e:
+            logger.error(f"Ürün okuma hatası: {str(e)}")
+            return None
+
+    def get_stock_and_prices(self) -> Optional[List[Dict]]:
+        """Stok ve fiyat bilgilerini getir
+
+        Returns:
+            Stok ve fiyat listesi veya None
+        """
+        try:
+            cursor = self.conn.cursor()
+            
+            cursor.execute("""
+                SELECT 
+                    STOK_KODU,
+                    SATIS_FIYATI1,
+                    BAKIYE
+                FROM STOKLAR
+                WHERE WEB_DURUM = 1 AND AKTIF = 1
+            """)
+            
+            products = []
+            for row in cursor.fetchall():
+                product = {
+                    'STOK_KODU': row[0],
+                    'SATIS_FIYATI1': float(row[1]) if row[1] else 0.0,
+                    'BAKIYE': float(row[2]) if row[2] else 0.0
+                }
+                products.append(product)
+                
+            return products
+            
+        except Exception as e:
+            logger.error(f"Stok ve fiyat okuma hatası: {str(e)}")
+            return None
 
 class WolvoxProductReader:
     def __init__(self):
@@ -46,103 +208,32 @@ class WolvoxProductReader:
     def get_all_products(self):
         """Tüm aktif ürünleri getir"""
         try:
-            cur = self.connection.cursor()
-            
-            # Ürünleri sorgula
-            cur.execute("""
-                SELECT 
-                    s.STOK_KODU,
-                    s.STOK_ADI,
-                    s.BARKOD,
-                    s.SATIS_FIYATI1,
-                    s.SATIS_FIYATI2,
-                    s.KDV_ORANI,
-                    s.STOK_BIRIMI,
-                    s.GRUP_KODU,
-                    s.GRUP_ARA_KODU,
-                    s.GRUP_ALT_KODU,
-                    s.ACIKLAMA,
-                    s.WEBDE_GORUNSUN,
-                    s.AKTIF,
-                    s.RESIM,
-                    g.GRUP_ADI as ANA_GRUP,
-                    ga.GRUP_ADI as ARA_GRUP,
-                    galt.GRUP_ADI as ALT_GRUP
-                FROM STOKLAR s
-                LEFT JOIN GRUP g ON s.GRUP_KODU = g.BLKODU
-                LEFT JOIN GRUP_ARA ga ON s.GRUP_ARA_KODU = ga.BLKODU
-                LEFT JOIN GRUP_ALT galt ON s.GRUP_ALT_KODU = galt.BLKODU
-                WHERE s.WEBDE_GORUNSUN = 1 
-                AND s.AKTIF = 1
-                ORDER BY s.STOK_KODU
-            """)
-            
-            products = []
-            for row in cur.fetchall():
-                product = {
-                    'stok_kodu': row[0],
-                    'stok_adi': row[1].strip() if row[1] else '',
-                    'barkod': row[2].strip() if row[2] else '',
-                    'satis_fiyati1': float(row[3]) if row[3] else 0,
-                    'satis_fiyati2': float(row[4]) if row[4] else 0,
-                    'kdv_orani': float(row[5]) if row[5] else 0,
-                    'stok_birimi': row[6].strip() if row[6] else '',
-                    'grup_kodu': row[7],
-                    'grup_ara_kodu': row[8],
-                    'grup_alt_kodu': row[9],
-                    'aciklama': row[10].strip() if row[10] else '',
-                    'webde_gorunsun': bool(row[11]),
-                    'aktif': bool(row[12]),
-                    'resim': row[13].strip() if row[13] else '',
-                    'ana_grup': row[14].strip() if row[14] else '',
-                    'ara_grup': row[15].strip() if row[15] else '',
-                    'alt_grup': row[16].strip() if row[16] else ''
-                }
-                products.append(product)
-            
-            logger.info(f"{len(products)} adet ürün bulundu")
-            return products
+            product_reader = ProductReader(self.connection)
+            return product_reader.get_all_products()
             
         except Exception as e:
             logger.error(f"Ürünler alınırken hata oluştu: {str(e)}")
             raise
-        finally:
-            if cur:
-                cur.close()
     
     def get_product_stock(self, stok_kodu):
         """Ürün stok miktarını getir"""
         try:
-            cur = self.connection.cursor()
-            
-            # Stok miktarını sorgula
-            cur.execute("""
-                SELECT 
-                    COALESCE(SUM(MIKTAR), 0) as STOK_MIKTARI
-                FROM STOK_HAREKETLERI
-                WHERE STOK_KODU = ?
-                GROUP BY STOK_KODU
-            """, (stok_kodu,))
-            
-            row = cur.fetchone()
-            stock_quantity = float(row[0]) if row else 0
-            
-            logger.info(f"Stok miktarı alındı: {stok_kodu} - {stock_quantity}")
-            return stock_quantity
+            product_reader = ProductReader(self.connection)
+            product = product_reader.get_product_by_code(stok_kodu)
+            if product:
+                return product['BAKIYE']
+            else:
+                return 0
             
         except Exception as e:
             logger.error(f"Stok miktarı alınırken hata oluştu: {str(e)}")
             raise
-        finally:
-            if cur:
-                cur.close()
     
     def get_product_images(self, stok_kodu):
         """Ürün resimlerini getir"""
         try:
-            cur = self.connection.cursor()
-            
             # Resimleri sorgula
+            cur = self.connection.cursor()
             cur.execute("""
                 SELECT 
                     RESIM,
@@ -188,16 +279,16 @@ if __name__ == "__main__":
     
     products = reader.get_all_products()
     for product in products[:5]:  # İlk 5 ürünü göster
-        print(f"Stok Kodu: {product['stok_kodu']}")
-        print(f"Stok Adı: {product['stok_adi']}")
-        print(f"Barkod: {product['barkod']}")
-        print(f"Satış Fiyatı 1: {product['satis_fiyati1']}")
-        print(f"Kategori: {product['ana_grup']} > {product['ara_grup']} > {product['alt_grup']}")
+        print(f"Stok Kodu: {product['STOK_KODU']}")
+        print(f"Stok Adı: {product['STOK_ADI']}")
+        print(f"Barkod: {product['BARKOD']}")
+        print(f"Satış Fiyatı 1: {product['SATIS_FIYATI1']}")
+        print(f"Kategori: {product['KATEGORI']} > {product['MARKA']} > {product['MODEL']}")
         
-        stock = reader.get_product_stock(product['stok_kodu'])
+        stock = reader.get_product_stock(product['STOK_KODU'])
         print(f"Stok Miktarı: {stock}")
         
-        images = reader.get_product_images(product['stok_kodu'])
+        images = reader.get_product_images(product['STOK_KODU'])
         print(f"Resim Sayısı: {len(images)}")
         print("-" * 50)
     

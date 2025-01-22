@@ -3,7 +3,7 @@ body {
     font-family: 'Segoe UI', Arial, sans-serif; 
     margin: 0;
     padding: 0;
-    background-color: #f5f5f5;
+    background-color: #f8f9fa;
 }
 
 /* Layout */
@@ -51,18 +51,37 @@ body {
 /* Kartlar */
 .card { 
     background: white;
-    border-radius: 8px; 
+    border: none;
+    border-radius: 10px; 
     padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+    height: 100%;
+}
+
+.card:hover {
+    transform: translateY(-5px);
 }
 
 .card-title { 
-    color: #333;
-    font-size: 1.5rem;
-    margin: 0 0 1rem 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    margin: 0 0 0.5rem 0;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #eee;
+}
+
+.card-text {
+    color: #212529;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* Tablolar */
@@ -70,6 +89,7 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin: 1rem 0;
+    margin-bottom: 0;
 }
 
 .table th, 
@@ -82,6 +102,16 @@ body {
 .table th {
     background-color: #f5f5f5;
     font-weight: 600;
+    border-top: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.9rem;
 }
 
 .table tr:hover {
@@ -165,3 +195,63 @@ body {
 .mt-1 { margin-top: 0.5rem; }
 .mt-2 { margin-top: 1rem; }
 .mt-3 { margin-top: 1.5rem; }
+
+/* Sidebar */
+.bg-dark {
+    background-color: #212529 !important;
+}
+
+.nav-link {
+    color: rgba(255, 255, 255, 0.8) !important;
+    transition: all 0.3s;
+}
+
+.nav-link:hover {
+    color: #fff !important;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+/* Toast bildirimleri */
+.toast-container {
+    z-index: 1050;
+}
+
+.toast {
+    opacity: 0.95;
+}
+
+.toast:hover {
+    opacity: 1;
+}
+
+/* Responsive düzenlemeler */
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .table-responsive {
+        margin-bottom: 0;
+    }
+}
+
+/* Animasyonlar */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card, .toast {
+    animation: fadeIn 0.3s ease-out;
+}

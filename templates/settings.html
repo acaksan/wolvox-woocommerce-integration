@@ -3,60 +3,98 @@
 {% block title %}Ayarlar{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2 class="card-title">Wolvox Bağlantı Ayarları</h2>
-    <form method="post" action="{{ url_for('test_connection') }}" class="mb-3">
-        <div class="form-group">
-            <label class="form-label">Veritabanı Yolu</label>
-            <input type="text" class="form-control" value="{{ config.WOLVOX_DB_PATH }}" readonly>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Kullanıcı Adı</label>
-            <input type="text" class="form-control" value="{{ config.WOLVOX_DB_USER }}" readonly>
-        </div>
-        <button type="submit" class="btn btn-primary">Bağlantıyı Test Et</button>
-    </form>
-</div>
+<div class="container py-4">
+    <h2 class="mb-4">
+        <i class="fas fa-cog me-2"></i>
+        Ayarlar
+    </h2>
 
-<div class="card mt-3">
-    <h2 class="card-title">WooCommerce Bağlantı Ayarları</h2>
-    <form method="post" action="{{ url_for('test_connection') }}" class="mb-3">
-        <div class="form-group">
-            <label class="form-label">API URL</label>
-            <input type="text" class="form-control" name="wc_url" required>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Consumer Key</label>
-            <input type="text" class="form-control" name="wc_key" required>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Consumer Secret</label>
-            <input type="password" class="form-control" name="wc_secret" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Bağlantıyı Test Et</button>
-    </form>
-</div>
+    <!-- Flash Mesajları -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-<div class="card mt-3">
-    <h2 class="card-title">Senkronizasyon Ayarları</h2>
-    <form method="post" action="{{ url_for('save_sync_settings') }}" class="mb-3">
-        <div class="form-group">
-            <label class="form-label">Otomatik Senkronizasyon</label>
-            <select class="form-control" name="auto_sync">
-                <option value="0">Kapalı</option>
-                <option value="1">Her saat</option>
-                <option value="2">Her gün</option>
-            </select>
+    <!-- Veritabanı Ayarları -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-database me-2"></i>
+                Veritabanı Ayarları
+            </h5>
         </div>
-        <div class="form-group">
-            <label class="form-label">Senkronize Edilecek Depolar</label>
-            <select class="form-control" name="sync_depots" multiple>
-                <option value="1">1_AC AKSAN</option>
-                <option value="2">2_LASTIK VS</option>
-                <option value="3">3_CADDE SUBE</option>
-            </select>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('test_connection') }}" class="mb-3">
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Bağlantı Durumu</label>
+                    <div class="col-sm-9">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plug me-2"></i>
+                            Bağlantıyı Test Et
+                        </button>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Sunucu</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control" value="{{ config.DATABASE_PATH }}" readonly>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Kullanıcı</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control" value="{{ config.DATABASE_USER }}" readonly>
+                    </div>
+                </div>
+            </form>
         </div>
-        <button type="submit" class="btn btn-primary">Ayarları Kaydet</button>
-    </form>
+    </div>
+
+    <!-- WooCommerce Ayarları -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-shopping-cart me-2"></i>
+                WooCommerce Ayarları
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post" action="{{ url_for('test_wc_connection') }}" class="mb-3">
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Bağlantı Durumu</label>
+                    <div class="col-sm-9">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plug me-2"></i>
+                            Bağlantıyı Test Et
+                        </button>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Site URL</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control" value="{{ config.WC_URL }}" readonly>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Consumer Key</label>
+                    <div class="col-sm-9">
+                        <input type="password" class="form-control" value="********" readonly>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <label class="col-sm-3 col-form-label">Consumer Secret</label>
+                    <div class="col-sm-9">
+                        <input type="password" class="form-control" value="********" readonly>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

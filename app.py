@@ -1,67 +1,83 @@
-from flask import Flask, render_template, jsonify, request, abort, redirect, url_for, flash
+from flask import Flask, render_template, jsonify, request, flash, redirect, url_for
 from flask_socketio import SocketIO
-import threading
-from datetime import datetime
 import logging
 from logging.handlers import RotatingFileHandler
-import json
+import os
+from datetime import datetime
 from decimal import Decimal
 import fdb
-import os
+from config import DB_CONFIG, APP_CONFIG, LOG_CONFIG
+
+from woocommerce.wc_client import WooCommerceClient
+from woocommerce.sync_manager import WooCommerceSyncManager
+from wolvox.product_reader import ProductReader
+
+# Flask uygulamasını oluştur
+app = Flask(__name__)
+app.config.from_object(APP_CONFIG)
+
+# Loglama ayarları
+logging.basicConfig(
+    filename=LOG_CONFIG['filename'],
+    level=getattr(logging, LOG_CONFIG['level']),
+    format=LOG_CONFIG['format']
+)
+logger = logging.getLogger(__name__)
+
+# Konsol handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(console_formatter)
+logger.addHandler(console_handler)
+
+# Dosya handler
+os.makedirs('logs', exist_ok=True)
+file_handler = RotatingFileHandler('logs/app.log', maxBytes=10485760, backupCount=5)
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
 
 class Config:
     """Uygulama konfigürasyonu"""
-    WOLVOX_DB_PATH = os.getenv('WOLVOX_DB_PATH')
-    WOLVOX_DB_HOST = os.getenv('WOLVOX_DB_HOST')
-    WOLVOX_DB_USER = os.getenv('WOLVOX_DB_USER')
-    WOLVOX_DB_PASSWORD = os.getenv('WOLVOX_DB_PASSWORD')
-    FIREBIRD_CLIENT_PATH = os.getenv('FIREBIRD_CLIENT_PATH')
+    # Varsayılan değerler
+    DATABASE_PATH = os.getenv('DATABASE_PATH', 'E:\\AKINSOFT\\Wolvox8\\Database_FB\\100\\2024\\WOLVOX.FDB')
+    DATABASE_USER = os.getenv('DATABASE_USER', 'SYSDBA')
+    DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD', 'masterkey')
+    
+    # WooCommerce ayarları
+    WC_URL = os.getenv('WC_URL', 'https://lastik-al.com')
+    WC_CONSUMER_KEY = os.getenv('WC_CONSUMER_KEY', 'ck_14ca8aab6f546bb34e5fd7f27ab0f77c6728c066')
+    WC_CONSUMER_SECRET = os.getenv('WC_CONSUMER_SECRET', 'cs_62e4007a181e06ed919fa469baaf6e3fac8ea45f')
 
 app = Flask(__name__)
 app.config.from_object(Config)
 app.secret_key = 'secret_key_here'  # Secret key ekleyin
 socketio = SocketIO(app)
 
-# Loglama için özel handler
-class WebSocketLogHandler(logging.Handler):
-    def emit(self, record):
-        log_entry = self.format(record)
-        socketio.emit('log_message', {'message': log_entry, 'level': record.levelname})
-
-# Logger ayarları
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-
-# Dosya handler'ı
-file_handler = RotatingFileHandler('logs/sync.log', maxBytes=10485760, backupCount=5)
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-# WebSocket handler'ı
-ws_handler = WebSocketLogHandler()
-ws_handler.setFormatter(formatter)
-logger.addHandler(ws_handler)
+# WooCommerce ayarları
+app.config.update(
+    WC_URL=os.getenv('WC_URL', 'https://lastik-al.com'),
+    WC_CONSUMER_KEY=os.getenv('WC_CONSUMER_KEY', 'ck_14ca8aab6f546bb34e5fd7f27ab0f77c6728c066'),
+    WC_CONSUMER_SECRET=os.getenv('WC_CONSUMER_SECRET', 'cs_62e4007a181e06ed919fa469baaf6e3fac8ea45f')
+)
 
 def get_db_connection():
-    """Veritabanı bağlantısını oluştur"""
+    """Veritabanı bağlantısı oluştur"""
     try:
-        # Firebird client path'ini ayarla
-        fb_client_path = os.getenv('FIREBIRD_CLIENT_PATH')
-        if fb_client_path and os.path.exists(fb_client_path):
-            fdb.load_api(fb_client_path)
-        
-        # Veritabanı bağlantısı
-        connection = fdb.connect(
-            dsn=f"{os.getenv('WOLVOX_DB_HOST')}:{os.getenv('WOLVOX_DB_PATH')}",
-            user=os.getenv('WOLVOX_DB_USER'),
-            password=os.getenv('WOLVOX_DB_PASSWORD'),
-            charset='ISO8859_9'  # Turkish (Latin 5)
+        # DSN formatında bağlantı
+        dsn = f"{DB_CONFIG['host']}:{DB_CONFIG['database']}"
+        conn = fdb.connect(
+            dsn=dsn,
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            charset=DB_CONFIG['charset']
         )
-        return connection
+        return conn
     except Exception as e:
-        logger.error(f"Veritabanı bağlantısı kurulamadı: {str(e)}")
-        raise
+        logger.error(f"Veritabanı bağlantı hatası: {str(e)}")
+        raise Exception(f"Veritabanı bağlantı hatası: {str(e)}")
 
 def decimal_default(obj):
     """JSON serializer için Decimal tipini destekler"""
@@ -257,111 +273,135 @@ def get_product_prices(stok_kodu):
             conn.close()
 
 @app.route('/api/products')
-def get_products():
-    """Ürün listesini döndürür"""
+def api_products():
+    """Ürün listesi API endpoint'i"""
     try:
-        # Sayfalama parametreleri
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 50, type=int)
-        search = request.args.get('search', '')
-        category = request.args.get('category', '')
-        
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Toplam kayıt sayısını al
-        if search:
-            cursor.execute("""
-                SELECT COUNT(*)
-                FROM STOK s
-                WHERE s.AKTIF = 1
-                AND (
-                    UPPER(s.STOK_ADI) LIKE UPPER(?)
-                    OR UPPER(s.STOKKODU) LIKE UPPER(?)
-                    OR UPPER(s.BARKODU) LIKE UPPER(?)
-                )
-            """, (f'%{search}%', f'%{search}%', f'%{search}%'))
-        else:
-            cursor.execute("""
-                SELECT COUNT(*)
-                FROM STOK s
-                WHERE s.AKTIF = 1
-            """)
+        # URL parametreleri
+        search = request.args.get('search', '')
+        category = request.args.get('category', '')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
         
-        total_count = cursor.fetchone()[0]
-        
-        # Ürünleri getir
+        # Offset hesapla
         offset = (page - 1) * per_page
         
+        # Ürünleri getir
+        query_params = []
+        where_clauses = ["s.AKTIF = 1", "s.WEBDE_GORUNSUN = 1"]  # Sadece aktif ve webde görünen ürünler
+        
         if search:
-            cursor.execute("""
-                SELECT FIRST ? SKIP ?
-                    s.BLKODU,
-                    s.STOKKODU,
-                    s.STOK_ADI,
-                    s.BARKODU,
-                    s.BIRIMI,
-                    s.KDV_ORANI,
-                    s.WEBDE_GORUNSUN,
-                    s.AKTIF,
-                    s.SATIS_FIYATI1,
-                    s.SATIS_FIYATI2
-                FROM STOK s
-                WHERE s.AKTIF = 1
-                AND (
-                    UPPER(s.STOK_ADI) LIKE UPPER(?)
-                    OR UPPER(s.STOKKODU) LIKE UPPER(?)
-                    OR UPPER(s.BARKODU) LIKE UPPER(?)
-                )
-                ORDER BY s.STOK_ADI
-            """, (per_page, offset, f'%{search}%', f'%{search}%', f'%{search}%'))
-        else:
-            cursor.execute("""
-                SELECT FIRST ? SKIP ?
-                    s.BLKODU,
-                    s.STOKKODU,
-                    s.STOK_ADI,
-                    s.BARKODU,
-                    s.BIRIMI,
-                    s.KDV_ORANI,
-                    s.WEBDE_GORUNSUN,
-                    s.AKTIF,
-                    s.SATIS_FIYATI1,
-                    s.SATIS_FIYATI2
-                FROM STOK s
-                WHERE s.AKTIF = 1
-                ORDER BY s.STOK_ADI
-            """, (per_page, offset))
+            where_clauses.append("(UPPER(s.STOK_ADI) LIKE UPPER(?) OR UPPER(s.STOKKODU) LIKE UPPER(?))")
+            query_params.extend([f'%{search}%', f'%{search}%'])
+        
+        if category and category != 'all':
+            where_clauses.append("UPPER(s.GRUBU) = UPPER(?)")
+            query_params.append(category)
+        
+        where_clause = " AND ".join(where_clauses)
+        
+        # Toplam kayıt sayısını al
+        cursor.execute(f"""
+            SELECT COUNT(*)
+            FROM STOK s
+            WHERE {where_clause}
+        """, query_params)
+        
+        total_records = cursor.fetchone()[0]
+        total_pages = (total_records + per_page - 1) // per_page
+        
+        # Ürünleri getir
+        cursor.execute(f"""
+            SELECT FIRST {per_page} SKIP {offset}
+                s.BLKODU,
+                s.STOKKODU,
+                s.STOK_ADI,
+                s.BARKOD,
+                s.STOK_BIRIMI,
+                s.GRUP_KODU,
+                s.ARA_GRUP_KODU,
+                s.ALT_GRUP_KODU,
+                s.KDV_ORANI,
+                s.WEBDE_GORUNSUN,
+                s.AKTIF,
+                s.RESIM,
+                s.ACIKLAMA,
+                g.GRUP_ADI as ANA_GRUP,
+                ga.GRUP_ADI as ARA_GRUP,
+                galt.GRUP_ADI as ALT_GRUP
+            FROM STOKLAR s
+            LEFT JOIN GRUP g ON s.GRUP_KODU = g.BLKODU
+            LEFT JOIN GRUP_ARA ga ON s.ARA_GRUP_KODU = ga.BLKODU
+            LEFT JOIN GRUP_ALT galt ON s.ALT_GRUP_KODU = galt.BLKODU
+            WHERE {where_clause}
+            GROUP BY 
+                s.BLKODU,
+                s.STOKKODU,
+                s.STOK_ADI,
+                s.BARKOD,
+                s.STOK_BIRIMI,
+                s.GRUP_KODU,
+                s.ARA_GRUP_KODU,
+                s.ALT_GRUP_KODU,
+                s.KDV_ORANI,
+                s.WEBDE_GORUNSUN,
+                s.AKTIF,
+                s.RESIM,
+                s.ACIKLAMA,
+                g.GRUP_ADI,
+                ga.GRUP_ADI,
+                galt.GRUP_ADI
+            ORDER BY s.STOK_ADI
+        """, query_params)
         
         products = []
         for row in cursor.fetchall():
-            product = {
-                'blkodu': row[0],
-                'stok_kodu': row[1],
-                'stok_adi': row[2],
-                'barkod': row[3],
-                'birim': row[4],
-                'kdv_orani': row[5],
-                'webde_gorunsun': row[6],
-                'aktif': row[7],
-                'satis_fiyati1': float(row[8] or 0),
-                'satis_fiyati2': float(row[9] or 0)
-            }
-            
-            products.append(product)
+            products.append({
+                'BLKODU': row[0],
+                'STOKKODU': row[1].strip() if row[1] else '',
+                'STOK_ADI': row[2].strip() if row[2] else '',
+                'BARKODU': row[3].strip() if row[3] else '',
+                'BIRIMI': row[4].strip() if row[4] else '',
+                'KDV_ORANI': float(row[8]) if row[8] else 0,
+                'WEBDE_GORUNSUN': bool(row[9]),
+                'AKTIF': bool(row[10]),
+                'GRUBU': row[11].strip() if row[11] else '',
+                'MARKASI': row[12].strip() if row[12] else '',
+                'SATIS_FIYATI': float(row[13]) if row[13] else 0
+            })
+        
+        # Kategorileri getir (sadece aktif ve webde görünen ürünlerin kategorileri)
+        cursor.execute("""
+            SELECT DISTINCT GRUBU
+            FROM STOK s
+            WHERE s.AKTIF = 1 
+            AND s.WEBDE_GORUNSUN = 1 
+            AND s.GRUBU IS NOT NULL 
+            AND TRIM(s.GRUBU) <> ''
+            ORDER BY GRUBU
+        """)
+        
+        categories = ['all']  # 'Tümü' seçeneği
+        categories.extend([row[0].strip() for row in cursor.fetchall()])
         
         cursor.close()
         conn.close()
         
         return jsonify({
-            'total': total_count,
-            'page': page,
-            'per_page': per_page,
-            'items': products
+            'products': products,
+            'categories': categories,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_pages': total_pages,
+                'total_records': total_records
+            }
         })
         
     except Exception as e:
-        logger.error(f"Ürün listesi alınırken hata: {str(e)}")
+        logger.error(f"API ürün listesi getirilirken hata: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/products/<stokkodu>')
@@ -536,6 +576,11 @@ def get_sync_status():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/sync-status')
+def sync_status():
+    """Senkronizasyon durumu sayfası"""
+    return render_template('sync_status.html')
+
+@app.route('/sync-status-page')
 def sync_status_page():
     """Senkronizasyon durumu sayfası"""
     return render_template('sync_status.html', 
@@ -779,21 +824,400 @@ def product_groups():
     return render_template('product_groups.html')
 
 @app.route('/settings/test-connection', methods=['POST'])
-def test_connection_page():
-    """Bağlantı testi - Web sayfası"""
+def test_connection():
+    """Veritabanı bağlantısını test et"""
     try:
-        # Wolvox bağlantı testi
-        wolvox_conn = get_db_connection()
-        wolvox_conn.close()
-        
-        # WooCommerce bağlantı testi
-        # TODO: WooCommerce bağlantı testi eklenecek
-        
-        flash('Bağlantı testi başarılı!', 'success')
+        conn = get_db_connection()
+        if conn:
+            flash('Veritabanı bağlantısı başarılı!', 'success')
+            conn.close()
+        else:
+            flash('Veritabanı bağlantısı başarısız!', 'error')
     except Exception as e:
-        flash(f'Bağlantı testi başarısız: {str(e)}', 'error')
+        logger.error(f"Veritabanı bağlantı hatası: {str(e)}")
+        flash(f'Veritabanı bağlantı hatası: {str(e)}', 'error')
     
     return redirect(url_for('settings'))
 
+@app.route('/settings/test-wc-connection', methods=['POST'])
+def test_wc_connection():
+    """WooCommerce bağlantısını test et"""
+    try:
+        wc_client = get_wc_client()
+        
+        sync_manager = WooCommerceSyncManager(wc_client, get_db_connection())
+        success, message = sync_manager.sync_product('PET-100-70-13-175-4000')
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+        
+    except Exception as e:
+        logger.error(f"WooCommerce bağlantı hatası: {str(e)}")
+        flash(f'WooCommerce bağlantı hatası: {str(e)}', 'error')
+    
+    return redirect(url_for('settings'))
+
+# Lastik özellikleri endpoint'leri
+@app.route('/api/tire-specs/<stok_kodu>')
+def get_tire_specs(stok_kodu):
+    """Lastik özelliklerini getir"""
+    try:
+        conn = get_db_connection()
+        db = TireSpecsDB(conn)
+        
+        specs = db.get_tire_specs(stok_kodu)
+        if not specs:
+            return jsonify({'error': 'Lastik özellikleri bulunamadı'}), 404
+            
+        return jsonify({
+            'stok_kodu': specs.stok_kodu,
+            'full_specs': specs.get_full_specs(),
+            'size': {
+                'width': specs.size.width,
+                'aspect_ratio': specs.size.aspect_ratio,
+                'construction': specs.size.construction,
+                'diameter': specs.size.diameter,
+                'full_size': specs.get_full_size()
+            },
+            'season': {
+                'name': specs.season.name,
+                'code': specs.season.code,
+                'description': specs.season.description
+            },
+            'speed_rating': {
+                'code': specs.speed_rating.code,
+                'speed': specs.speed_rating.speed,
+                'description': specs.speed_rating.description
+            },
+            'load_index': {
+                'code': specs.load_index.code,
+                'weight': specs.load_index.weight,
+                'description': specs.load_index.description
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Lastik özellikleri getirilirken hata: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/tire-specs')
+def tire_specs_page():
+    """Lastik özellikleri sayfası"""
+    return render_template('tire_specs.html')
+
+# WooCommerce API endpoint'leri
+@app.route('/api/dashboard/stats', methods=['GET'])
+def get_dashboard_stats():
+    """Dashboard istatistiklerini getir"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Toplam ürün sayısı
+        cursor.execute("SELECT COUNT(*) FROM STOKLAR WHERE WEBDE_GORUNSUN = 1")
+        total_products = cursor.fetchone()[0]
+        
+        # WooCommerce'de aktif ürün sayısı
+        cursor.execute("""
+            SELECT COUNT(*) FROM STOKLAR s
+            WHERE s.WEBDE_GORUNSUN = 1
+            AND EXISTS (
+                SELECT 1 FROM WOO_PRODUCTS wp
+                WHERE wp.STOK_KODU = s.STOKKODU
+            )
+        """)
+        active_products = cursor.fetchone()[0]
+        
+        # Bekleyen güncelleme sayısı
+        cursor.execute("""
+            SELECT COUNT(*) FROM STOKLAR s
+            WHERE s.WEBDE_GORUNSUN = 1
+            AND (
+                s.GUNCELLEME_TARIHI IS NULL
+                OR s.GUNCELLEME_TARIHI < s.DEGISIKLIK_TARIHI
+            )
+        """)
+        pending_updates = cursor.fetchone()[0]
+        
+        # Son senkronizasyon tarihi
+        cursor.execute("""
+            SELECT MAX(TARIH) FROM WOO_SYNC_LOG
+        """)
+        last_sync = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'total_products': total_products,
+            'synced_products': active_products,
+            'stock_updates': pending_updates,
+            'price_updates': last_sync.strftime('%Y-%m-%d %H:%M:%S') if last_sync else '-'
+        })
+        
+    except Exception as e:
+        logger.error(f"Dashboard istatistikleri hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/api/dashboard/activities')
+def get_dashboard_activities():
+    """Son aktiviteleri getir"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT TOP 10
+                TARIH,
+                ISLEM_TIPI,
+                DURUM
+            FROM WOO_SYNC_LOG
+            ORDER BY TARIH DESC
+        """)
+        
+        activities = []
+        for row in cursor:
+            activities.append({
+                'date': row[0].strftime('%Y-%m-%d %H:%M:%S') if row[0] else '-',
+                'type': row[1],
+                'status': row[2]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'activities': activities
+        })
+        
+    except Exception as e:
+        logger.error(f"Son aktiviteler hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/api/dashboard/errors')
+def get_dashboard_errors():
+    """Son hataları getir"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT TOP 10
+                TARIH,
+                HATA_TIPI,
+                MESAJ
+            FROM WOO_ERROR_LOG
+            ORDER BY TARIH DESC
+        """)
+        
+        errors = []
+        for row in cursor:
+            errors.append({
+                'date': row[0].strftime('%Y-%m-%d %H:%M:%S') if row[0] else '-',
+                'type': row[1],
+                'message': row[2]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'errors': errors
+        })
+        
+    except Exception as e:
+        logger.error(f"Hata listesi hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+@app.route('/api/sync/product/<stok_kodu>', methods=['POST'])
+def sync_single_product(stok_kodu):
+    """Tek bir ürünü WooCommerce ile senkronize et"""
+    try:
+        wc_client = get_wc_client()
+        
+        sync_manager = WooCommerceSyncManager(wc_client, get_db_connection())
+        success, message = sync_manager.sync_product(stok_kodu)
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+        
+    except Exception as e:
+        logger.error(f"Ürün senkronizasyon hatası: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sync/all', methods=['POST'])
+def sync_all_products():
+    """Tüm ürünleri WooCommerce ile senkronize et"""
+    try:
+        wc_client = get_wc_client()
+        
+        sync_manager = WooCommerceSyncManager(wc_client, get_db_connection())
+        results = sync_manager.sync_all_products()
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        logger.error(f"Toplu senkronizasyon hatası: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sync/stock/<stok_kodu>', methods=['POST'])
+def sync_stock(stok_kodu):
+    """Stok miktarını WooCommerce ile senkronize et"""
+    try:
+        wc_client = get_wc_client()
+        
+        sync_manager = WooCommerceSyncManager(wc_client, get_db_connection())
+        success, message = sync_manager.sync_stock(stok_kodu)
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+        
+    except Exception as e:
+        logger.error(f"Stok senkronizasyon hatası: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/sync/price/<stok_kodu>', methods=['POST'])
+def sync_price(stok_kodu):
+    """Fiyatı WooCommerce ile senkronize et"""
+    try:
+        wc_client = get_wc_client()
+        
+        sync_manager = WooCommerceSyncManager(wc_client, get_db_connection())
+        success, message = sync_manager.sync_price(stok_kodu)
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+        
+    except Exception as e:
+        logger.error(f"Fiyat senkronizasyon hatası: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/sync/all', methods=['POST'])
+def sync_all():
+    """Tüm ürünleri senkronize et"""
+    try:
+        conn = get_db_connection()
+        wc_client = get_wc_client()
+        product_reader = ProductReader(conn)
+        sync_manager = WooCommerceSyncManager(wc_client, product_reader)
+        
+        results = sync_manager.sync_all_products()
+        
+        success_count = len([r for r, _ in results if r])
+        total_count = len(results)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{success_count}/{total_count} ürün senkronize edildi',
+            'results': [{'success': r, 'message': m} for r, m in results]
+        })
+        
+    except Exception as e:
+        logger.error(f"Senkronizasyon hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Hata: {str(e)}'
+        }), 500
+
+@app.route('/sync/stock-prices', methods=['POST'])
+def sync_stock_prices():
+    """Stok ve fiyatları senkronize et"""
+    try:
+        conn = get_db_connection()
+        wc_client = get_wc_client()
+        product_reader = ProductReader(conn)
+        sync_manager = WooCommerceSyncManager(wc_client, product_reader)
+        
+        results = sync_manager.sync_stock_prices()
+        
+        success_count = len([r for r, _ in results if r])
+        total_count = len(results)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{success_count}/{total_count} ürün güncellendi',
+            'results': [{'success': r, 'message': m} for r, m in results]
+        })
+        
+    except Exception as e:
+        logger.error(f"Stok/fiyat senkronizasyon hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Hata: {str(e)}'
+        }), 500
+
+@app.route('/sync/product/<stok_kodu>', methods=['POST'])
+def sync_product(stok_kodu):
+    """Tek bir ürünü senkronize et"""
+    try:
+        conn = get_db_connection()
+        wc_client = get_wc_client()
+        product_reader = ProductReader(conn)
+        sync_manager = WooCommerceSyncManager(wc_client, product_reader)
+        
+        product = product_reader.get_product_by_code(stok_kodu)
+        if not product:
+            return jsonify({
+                'success': False,
+                'message': f'Ürün bulunamadı: {stok_kodu}'
+            }), 404
+        
+        success, message = sync_manager.sync_product(product)
+        
+        conn.close()
+        
+        return jsonify({
+            'success': success,
+            'message': message
+        })
+        
+    except Exception as e:
+        logger.error(f"Ürün senkronizasyon hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Hata: {str(e)}'
+        }), 500
+
+@app.route('/sync/status', methods=['GET'])
+def get_sync_status_info():
+    """Son senkronizasyon durumunu getir"""
+    try:
+        # TODO: Son senkronizasyon bilgilerini veritabanından al
+        return jsonify({
+            'success': True,
+            'last_sync': datetime.now().isoformat(),
+            'total_products': 0,
+            'synced_products': 0,
+            'failed_products': 0
+        })
+        
+    except Exception as e:
+        logger.error(f"Durum sorgulama hatası: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Hata: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, host='localhost', debug=False, port=8080)
